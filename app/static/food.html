@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WasteWise AI | Food Waste Command Center</title>
+  <link rel="stylesheet" href="/static/food.css">
+</head>
+<body>
+  <header><div><p class="eyebrow">REAL-TIME FOOD OPERATIONS</p><h1>WasteWise <span>AI</span></h1></div><div class="live"><i></i><span id="status">STREAMING</span><button id="streamButton">Pause stream</button><button id="weatherButton">Refresh weather</button></div></header>
+  <main>
+    <section class="hero">
+      <div><p class="eyebrow">AGENTIC DECISION SYSTEM</p><h2>Make every portion count.</h2><p id="context" class="subtle">Loading operating context…</p></div>
+      <div class="forecast"><p>Tomorrow's lunch plan</p><strong id="prepare">—</strong><small>recommended portions</small><p id="predictionReason" class="subtle"></p></div>
+    </section>
+    <section class="metrics">
+      <article><p>Inventory</p><strong id="inventoryKg">—</strong><span>kg tracked live</span></article>
+      <article class="amber"><p>Needs action today</p><strong id="riskKg">—</strong><span>kg at food-safety risk</span></article>
+      <article><p>Weekly avoidable waste</p><strong id="wasteKg">—</strong><span>kg detected</span></article>
+      <article class="green"><p>Waste reduction</p><strong id="reduction">—</strong><span>vs. baseline</span></article>
+    </section>
+    <section class="grid">
+      <article class="panel inventory"><div class="panel-title"><div><p class="eyebrow">USDA FOODKEEPER</p><h3>Inventory risk queue</h3></div><span class="badge">FIFO</span></div><div id="inventoryRows"></div></article>
+      <article class="panel"><div class="panel-title"><div><p class="eyebrow">EXPLAINABLE AI</p><h3>Agent workspace</h3></div><span class="badge violet">3 agents</span></div><div id="agents" class="agents"></div></article>
+      <article class="panel events"><div class="panel-title"><div><p class="eyebrow">SIMULATED IOT STREAM</p><h3>Live sensor events</h3></div><span id="eventCount" class="badge">—</span></div><div id="events"></div></article>
+      <article class="panel safety"><p class="eyebrow">SAFETY BOUNDARY</p><h3>Decision support, not a food-safety authority</h3><p>Donation and reuse suggestions are deliberately conditional. Always follow local health regulations, time–temperature controls, and your organization’s policy.</p><p id="source" class="source"></p></article>
+    </section>
+  </main>
+  <footer>WasteWise AI · Real-time simulation · Weather API gracefully falls back to local simulation</footer>
+  <script src="/static/food.js"></script>
+</body></html>
