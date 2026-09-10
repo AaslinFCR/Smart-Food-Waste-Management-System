@@ -1,0 +1,7 @@
+services:
+  wastewise-ai:
+    build: .
+    image: wastewise-ai:local
+    ports:
+      - "8000:8000"
+    restart: unless-stopped

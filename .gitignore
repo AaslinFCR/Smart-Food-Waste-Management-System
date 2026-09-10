@@ -1,0 +1,40 @@
+# Python runtime and test artifacts
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Generated application packages and build output
+build/
+build-*/
+dist/
+dist-*/
+*.spec
+*.zip
+
+# Local editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Legacy material retained locally but not part of WasteWise AI
+Sentinel RCA Dashboard.html
+Launch Sentinel RCA.vbs
+app/services/document_loader.py
+app/services/knowledge_base.py
+app/services/llm.py
+app/services/rca_engine.py
+app/services/retrieval.py
+app/services/simplifier.py
+app/static/app.js
+app/static/index.html
+app/static/rca.css
+app/static/rca.html
+app/static/rca.js
+app/static/styles.css
+data/sample_family_law_dataset.jsonl
+scripts/train_lora.py
+scripts/performance_matrix.py
+scripts/evaluate_simplifier.py
+docs/performance_matrix.md
