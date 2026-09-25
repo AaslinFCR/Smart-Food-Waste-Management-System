@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.models import StreamControl
+from app.models import MealFeedback, StreamControl
 from app.services.food_engine import FoodWasteEngine
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -52,6 +52,19 @@ def add_tick() -> dict:
 @app.post("/api/weather/refresh")
 def refresh_weather() -> dict:
     return engine.refresh_weather()
+
+
+@app.post("/api/feedback")
+def record_feedback(feedback: MealFeedback) -> dict:
+    try:
+        return engine.record_feedback(feedback.dish, feedback.reaction)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/feedback/simulate")
+def simulate_daily_feedback() -> dict:
+    return engine.simulate_daily_feedback()
 
 
 @app.post("/api/items/{item_name}/temperature")
