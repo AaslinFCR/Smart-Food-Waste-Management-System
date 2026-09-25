@@ -21,6 +21,17 @@ DEFAULT_FOODKEEPER = [
 ]
 
 
+# Ingredient cues keep the recommender transparent and work with the raw USDA names.
+DISH_LIBRARY = [
+    {"name": "Chicken fried rice", "ingredients": ("rice", "chicken"), "note": "Cook thoroughly and serve immediately; only use food that passes your safety policy."},
+    {"name": "Vegetable rice bowl", "ingredients": ("rice", "lettuce"), "note": "Use washed vegetables and serve chilled components separately."},
+    {"name": "Chicken sandwich", "ingredients": ("chicken", "bread"), "note": "Reheat chicken safely, then assemble close to service."},
+    {"name": "Yogurt fruit parfait", "ingredients": ("yogurt",), "note": "Keep below 5°C until serving."},
+    {"name": "Creamy vegetable soup", "ingredients": ("milk", "lettuce"), "note": "Use only suitable vegetables; do not reuse temperature-abused food."},
+    {"name": "Toasted bread bites", "ingredients": ("bread",), "note": "A simple same-day use option for safe bakery stock."},
+]
+
+
 class FoodWasteEngine:
     """Local digital-twin stream with an explainable multi-agent decision workflow."""
 
@@ -35,6 +46,8 @@ class FoodWasteEngine:
         self._weather = self._fallback_weather()
         self._last_weather_refresh = "Simulation context"
         self._seed_history()
+        self._feedback: deque[dict[str, Any]] = deque(maxlen=21)
+        self._feedback_simulated_on: str | None = None
         self._add_event("SYSTEM", "Live food telemetry simulator ready", "info")
 
     def _load_foodkeeper(self, data_dir: Path) -> list[dict[str, Any]]:
@@ -187,6 +200,7 @@ class FoodWasteEngine:
                 self._add_event("SENSOR", f"Cold-chain alert: {item['food']} reached {item['temperature_c']}°C", "warning")
             else:
                 self._add_event("SENSOR", f"{item['food']}: {item['kg']} kg scanned; age {item['age_days']} days", "info")
+            self._ensure_daily_feedback()
             return self.snapshot()
 
     def update_temperature(self, item_name: str, temperature_c: float) -> dict[str, Any]:
@@ -201,7 +215,15 @@ class FoodWasteEngine:
     def _calendar_context(self) -> dict[str, Any]:
         today = datetime.now()
         weekend = today.weekday() >= 5
-        return {"day": today.strftime("%A"), "weekend": weekend, "meal": "Lunch", "event": "Weekend attendance pattern" if weekend else "Normal academic calendar"}
+        # A transparent local calendar model. Holidays can be added here by an operator.
+        academic_day = not weekend
+        return {
+            "day": today.strftime("%A"), "date": today.strftime("%d %b %Y"), "weekend": weekend,
+            "meal": "Lunch", "event": "Weekend attendance pattern" if weekend else "Normal academic calendar",
+            "attendance_factor": 0.42 if weekend else 1.0,
+            "next_service": (today + timedelta(days=1)).strftime("%A lunch"),
+            "calendar_signal": "Lower expected campus attendance" if weekend else "Regular class-day attendance",
+        }
 
     def _risk(self, item: dict[str, Any]) -> dict[str, Any]:
         shelf = max(1, item["fridge_days"])
@@ -216,20 +238,86 @@ class FoodWasteEngine:
         matching = [r["demand"] for r in self._history if (r["date"] in ("Sat", "Sun")) == calendar["weekend"]]
         baseline = sum(matching) / len(matching) if matching else 420
         weather_adjustment = -18 if self._weather["rain_probability"] > 55 else 8 if self._weather["temperature_c"] > 32 else 0
-        predicted = round(baseline + weather_adjustment)
+        feedback_adjustment = self._feedback_adjustment()
+        predicted = round(baseline + weather_adjustment + feedback_adjustment)
         buffer = max(12, round(predicted * 0.04))
-        return {"demand": predicted, "recommended_prepare": predicted + buffer, "confidence": 82, "reason": f"{calendar['day']} history + {self._weather['condition'].lower()} weather adjustment"}
+        return {"demand": predicted, "recommended_prepare": predicted + buffer, "confidence": 82, "reason": f"{calendar['day']} history + {self._weather['condition'].lower()} weather + diner-feedback adjustment", "feedback_adjustment": feedback_adjustment}
+
+    def _dish_recommendations(self, inventory: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        safe = [item for item in inventory if item["temperature_c"] <= 8 and item["risk_score"] < 90]
+        safe_names = " ".join(item["food"].lower() for item in safe)
+        results = []
+        for dish in DISH_LIBRARY:
+            matched = [ingredient for ingredient in dish["ingredients"] if ingredient in safe_names]
+            if not matched:
+                continue
+            urgency = sum(item["risk_score"] for item in safe if any(ingredient in item["food"].lower() for ingredient in matched))
+            results.append({"name": dish["name"], "matched_ingredients": matched, "use_first_score": min(100, round(urgency / len(matched))), "note": dish["note"]})
+        return sorted(results, key=lambda dish: dish["use_first_score"], reverse=True)[:3]
+
+    def _feedback_summary(self) -> dict[str, Any]:
+        likes = sum(item["likes"] for item in self._feedback)
+        dislikes = sum(item["dislikes"] for item in self._feedback)
+        total = likes + dislikes
+        return {"likes": likes, "dislikes": dislikes, "approval_pct": round((likes / total) * 100) if total else 0, "entries": list(self._feedback)[:7]}
+
+    def _feedback_adjustment(self) -> int:
+        summary = self._feedback_summary()
+        if not summary["likes"] and not summary["dislikes"]:
+            return 0
+        # Kept small so feedback informs, but never overwhelms, attendance history.
+        return round((summary["approval_pct"] - 50) * 0.24)
+
+    def _ensure_daily_feedback(self) -> None:
+        today = datetime.now().date().isoformat()
+        if self._feedback_simulated_on != today:
+            self._simulate_feedback_locked()
+
+    def _simulate_feedback_locked(self) -> None:
+        inventory = sorted((self._risk(item) for item in self._inventory), key=lambda item: item["risk_score"], reverse=True)
+        choices = self._dish_recommendations(inventory)
+        if not choices:
+            return
+        dish = choices[0]["name"]
+        likes = random.randint(55, 92)
+        dislikes = random.randint(4, max(5, 100 - likes))
+        entry = {"date": datetime.now().strftime("%d %b"), "dish": dish, "likes": likes, "dislikes": dislikes, "simulated": True}
+        self._feedback.appendleft(entry)
+        self._feedback_simulated_on = datetime.now().date().isoformat()
+        self._add_event("DINER SIGNAL", f"Daily feedback simulated for {dish}: {likes} likes, {dislikes} dislikes", "info")
+
+    def simulate_daily_feedback(self) -> dict[str, Any]:
+        with self._lock:
+            self._simulate_feedback_locked()
+            return self.snapshot()
+
+    def record_feedback(self, dish: str, reaction: str) -> dict[str, Any]:
+        reaction = reaction.lower().strip()
+        if reaction not in {"like", "dislike"}:
+            raise ValueError("Reaction must be 'like' or 'dislike'.")
+        with self._lock:
+            entry = next((item for item in self._feedback if item["dish"] == dish and item["date"] == datetime.now().strftime("%d %b")), None)
+            if entry is None:
+                entry = {"date": datetime.now().strftime("%d %b"), "dish": dish, "likes": 0, "dislikes": 0, "simulated": False}
+                self._feedback.appendleft(entry)
+            entry[f"{reaction}s"] += 1
+            self._add_event("DINER SIGNAL", f"{reaction.title()} recorded for {dish}", "info")
+            return self.snapshot()
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
             calendar = self._calendar_context()
             inventory = sorted((self._risk(i) for i in self._inventory), key=lambda x: x["risk_score"], reverse=True)
             prediction = self._prediction(calendar)
+            dishes = self._dish_recommendations(inventory)
+            self._ensure_daily_feedback()
+            feedback = self._feedback_summary()
             at_risk_kg = round(sum(i["kg"] for i in inventory if i["risk_score"] >= 55), 1)
             recent_waste = sum(r["waste"] for r in list(self._history)[-7:])
             agent_actions = [
                 {"agent": "Demand Forecaster", "finding": f"Forecasts {prediction['demand']} lunch portions.", "action": f"Prepare {prediction['recommended_prepare']} portions."},
                 {"agent": "Food Safety Guardian", "finding": f"{inventory[0]['food']} is highest risk ({inventory[0]['risk_score']}/100).", "action": inventory[0]["action"]},
                 {"agent": "Recovery Planner", "finding": f"{at_risk_kg} kg requires action today.", "action": "Use eligible food first; route ineligible material to composting."},
+                {"agent": "Menu Recovery Agent", "finding": f"{dishes[0]['name'] if dishes else 'No safe leftover dish'} is the best current leftover-use option.", "action": "Use only items that pass the Food Safety Guardian check."},
             ]
-            return {"streaming": self._running, "generated_at": datetime.now(timezone.utc).isoformat(), "weather": self._weather, "weather_refreshed": self._last_weather_refresh, "calendar": calendar, "prediction": prediction, "inventory": inventory, "events": list(self._events), "agents": agent_actions, "metrics": {"inventory_kg": round(sum(i["kg"] for i in inventory), 1), "at_risk_kg": at_risk_kg, "weekly_waste_kg": recent_waste, "waste_reduction_pct": 18}, "data_source": self._dataset_label}
+            return {"streaming": self._running, "generated_at": datetime.now(timezone.utc).isoformat(), "weather": self._weather, "weather_refreshed": self._last_weather_refresh, "calendar": calendar, "prediction": prediction, "inventory": inventory, "dishes": dishes, "feedback": feedback, "events": list(self._events), "agents": agent_actions, "metrics": {"inventory_kg": round(sum(i["kg"] for i in inventory), 1), "at_risk_kg": at_risk_kg, "weekly_waste_kg": recent_waste, "waste_reduction_pct": 18}, "data_source": self._dataset_label}

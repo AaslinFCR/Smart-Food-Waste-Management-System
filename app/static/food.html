@@ -20,7 +20,9 @@
     </section>
     <section class="grid">
       <article class="panel inventory"><div class="panel-title"><div><p class="eyebrow">USDA FOODKEEPER</p><h3>Inventory risk queue</h3></div><span class="badge">FIFO</span></div><div id="inventoryRows"></div></article>
-      <article class="panel"><div class="panel-title"><div><p class="eyebrow">EXPLAINABLE AI</p><h3>Agent workspace</h3></div><span class="badge violet">3 agents</span></div><div id="agents" class="agents"></div></article>
+      <article class="panel"><div class="panel-title"><div><p class="eyebrow">EXPLAINABLE AI</p><h3>Agent workspace</h3></div><span class="badge violet">4 agents</span></div><div id="agents" class="agents"></div></article>
+      <article class="panel dishes"><div class="panel-title"><div><p class="eyebrow">LEFTOVER TO PLATE</p><h3>Safe-use dish recommendations</h3></div><span class="badge violet">AI menu</span></div><p class="panel-intro">Recommendations use only inventory below the safety threshold. Confirm local food-safety policy before serving.</p><div id="dishes"></div></article>
+      <article class="panel feedback"><div class="panel-title"><div><p class="eyebrow">DAILY DINER SIGNAL</p><h3>Like / dislike feedback</h3></div><button id="simulateFeedback">Simulate day</button></div><div class="approval"><strong id="approval">—</strong><span>meal approval</span><small><b id="likes">—</b> likes · <b id="dislikes">—</b> dislikes</small></div><div id="feedbackRows"></div></article>
       <article class="panel events"><div class="panel-title"><div><p class="eyebrow">SIMULATED IOT STREAM</p><h3>Live sensor events</h3></div><span id="eventCount" class="badge">—</span></div><div id="events"></div></article>
       <article class="panel safety"><p class="eyebrow">SAFETY BOUNDARY</p><h3>Decision support, not a food-safety authority</h3><p>Donation and reuse suggestions are deliberately conditional. Always follow local health regulations, time–temperature controls, and your organization’s policy.</p><p id="source" class="source"></p></article>
     </section>

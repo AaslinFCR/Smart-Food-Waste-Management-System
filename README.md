@@ -32,9 +32,16 @@ The generated app is `dist-real-dataset\WasteWiseAI\WasteWiseAI.exe`. Copy the w
 ## Agent workflow
 
 1. **Sensor agent** ingests simulated weight, age, and cold-chain readings.
-2. **Demand forecaster** predicts meal demand using day pattern and weather adjustment.
+2. **Demand forecaster** predicts meal demand using day pattern, weather, and aggregated diner feedback.
 3. **Food Safety Guardian** scores perishable-food risk from storage age and temperature.
 4. **Recovery Planner** prioritizes safe use and routes unsuitable material to composting.
+5. **Menu Recovery Agent** recommends dishes from safe leftover ingredient matches and records daily diner likes/dislikes.
+
+## Leftover dishes and diner feedback
+
+The dashboard now proposes up to three explainable, leftover-based dishes (for example chicken fried rice or a yogurt parfait). It explicitly excludes items above the safety threshold; the kitchen must still validate all food against its local food-safety policy.
+
+Each day the simulator creates a labelled baseline of diner reactions. Use the **Like** / **Dislike** buttons after a dish is served, or use **Simulate day** for a demo. The aggregated approval signal makes a deliberately small adjustment to the forecast, alongside the existing calendar and weather signals.
 
 The suggestions are decision support only. Donation/reuse must be approved using the operator’s applicable food-safety policy and local regulations.
 
